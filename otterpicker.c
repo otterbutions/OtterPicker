@@ -34,17 +34,13 @@ GtkCssProvider *stylesheets[TOTAL_CSS];
 
 int grayscaleAlg(void)
 {
-	unsigned int rgb[3];
-	char toChange[7];
+	unsigned int rgb = strtol((COLORENTRY_TEXT+1), NULL, 16);
 
-	strncpy(toChange, (COLORENTRY_TEXT+1), 7);
-	toChange[6] = '\0';
-
-	rgb[0] = strtol(toChange, NULL, 16) >> 16 & 0xFF;
-	rgb[1] = strtol(toChange + 2, NULL, 16) >> 8 & 0xFF;
-	rgb[2] = strtol(toChange + 4, NULL, 16) & 0xFF;
-
-	return (rgb[0] * 0.299 + rgb[1] * 0.587 + rgb[2] * 0.114);
+	return (
+		(rgb >> 16 & 0xFF) * 0.299 +
+		(rgb >> 8 & 0xFF) * 0.587 + 
+		(rgb & 0xFF) * 0.114
+	);
 }
 
 void grayscaleHandler(void)
@@ -71,7 +67,7 @@ int setColor(const char* toChange)
 	if(!gdk_rgba_parse(&parse, COLORENTRY_TEXT)) return 1;
 
 	gtk_css_provider_load_from_data(stylesheets[COLOR_CSS],
-		g_strdup_printf("#picked-color { background-color: \\%s }", toChange), -1, NULL);
+		g_strdup_printf("#picked-color { background-color: %s }", toChange), -1, NULL);
 
 	gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
 		GTK_STYLE_PROVIDER(stylesheets[COLOR_CSS]), GTK_STYLE_PROVIDER_PRIORITY_USER);
