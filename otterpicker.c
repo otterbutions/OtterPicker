@@ -5,12 +5,14 @@
 #define COLORENTRY_TEXT gtk_entry_get_text(GTK_ENTRY(color.colorEntry))
 
 int setColor(const char* toChange);
+int reverseAlg(void);
 int grayscaleAlg(void);
 void grayscaleHandler(void);
 void colorHander(void);
 
 void initWidget(void);
 void initCSS(void);
+void initSignal(void);
 void win(void);
 void cleanup(void);
 
@@ -19,7 +21,7 @@ typedef struct {
 } application;
 
 typedef struct {
-	GtkWidget *colorEntry, *grayButton, *colorBox;
+	GtkWidget *colorEntry, *grayButton, *reverseButton, *colorBox;
 } colorPicker;
 
 typedef enum {
@@ -31,33 +33,6 @@ typedef enum {
 application app;
 colorPicker color;
 GtkCssProvider *stylesheets[TOTAL_CSS];
-
-int grayscaleAlg(void)
-{
-	unsigned int rgb = strtol((COLORENTRY_TEXT+1), NULL, 16);
-
-	return (
-		(rgb >> 16 & 0xFF) * 0.299 +
-		(rgb >> 8 & 0xFF) * 0.587 + 
-		(rgb & 0xFF) * 0.114
-	);
-}
-
-void grayscaleHandler(void)
-{
-	GdkRGBA parse;
-	char gray[7];
-	int i;
-
-	// Checks if color is valid
-	if(!gdk_rgba_parse(&parse, COLORENTRY_TEXT) || strlen(COLORENTRY_TEXT) != 7) return;
-
-	i = grayscaleAlg();
-	sprintf(gray, "#%x%x%x", i, i, i);
-	gtk_entry_set_text(GTK_ENTRY(color.colorEntry), gray);
-
-	setColor(gray);
-}
 
 int setColor(const char* toChange)
 {
@@ -71,8 +46,59 @@ int setColor(const char* toChange)
 
 	gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
 		GTK_STYLE_PROVIDER(stylesheets[COLOR_CSS]), GTK_STYLE_PROVIDER_PRIORITY_USER);
+	gtk_entry_set_text(GTK_ENTRY(color.colorEntry), toChange);
 
 	return 0;
+}
+
+int reverseAlg(void)
+{
+	unsigned int rgb = strtol((COLORENTRY_TEXT+1), NULL, 16);
+
+	return (
+		(0xFF - (rgb >> 16 & 0xFF)) << 16 | 
+		(0xFF - (rgb >> 8 & 0xFF)) << 8 | 
+		(0xFF - (rgb & 0xFF))
+	);
+}
+
+int grayscaleAlg(void)
+{
+	unsigned int rgb = strtol((COLORENTRY_TEXT+1), NULL, 16);
+
+	return (
+		(rgb >> 16 & 0xFF) * 0.299 +
+		(rgb >> 8 & 0xFF) * 0.587 + 
+		(rgb & 0xFF) * 0.114
+	);
+}
+
+
+void reverseHandler(void)
+{
+	GdkRGBA parse;
+	char reverse[7];
+
+	if(!gdk_rgba_parse(&parse, COLORENTRY_TEXT) || strlen(COLORENTRY_TEXT) != 7) return;
+
+	sprintf(reverse, "#%x", reverseAlg());
+
+	setColor(reverse);
+}
+
+void grayscaleHandler(void)
+{
+	GdkRGBA parse;
+	char gray[7];
+	unsigned int i;
+
+	// Checks if color is valid
+	if(!gdk_rgba_parse(&parse, COLORENTRY_TEXT) || strlen(COLORENTRY_TEXT) != 7) return;
+
+	i = grayscaleAlg();
+	sprintf(gray, "#%x%x%x", i, i, i);
+
+	setColor(gray);
 }
 
 void colorHandler(void)
@@ -89,7 +115,8 @@ void initWidget(void)
 	gtk_entry_set_placeholder_text(GTK_ENTRY(color.colorEntry), "RRGGBB");
 
 	// Create gray input entry 
-	color.grayButton = gtk_button_new_with_label("Grayscale");
+	color.grayButton = gtk_button_new_with_label("Grayscale color");
+	color.reverseButton = gtk_button_new_with_label("Reverse color");
 
 	// Color box
 	color.colorBox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
@@ -99,6 +126,7 @@ void initWidget(void)
 	gtk_grid_attach(GTK_GRID(app.grid), color.colorEntry, 0, 0, 1, 1);
 	gtk_grid_attach(GTK_GRID(app.grid), color.colorBox, 1, 0, 1, 1);
 	gtk_grid_attach(GTK_GRID(app.grid), color.grayButton, 0, 1, 2, 1);
+	gtk_grid_attach(GTK_GRID(app.grid), color.reverseButton, 0, 2, 2, 1);
 
 	gtk_container_add(GTK_CONTAINER(app.window), app.grid);
 }
@@ -126,6 +154,13 @@ void initCSS(void)
 		GTK_STYLE_PROVIDER(stylesheets[APP_CSS]), GTK_STYLE_PROVIDER_PRIORITY_USER);
 }
 
+void initSignal()
+{
+	g_signal_connect(color.colorEntry, "changed", G_CALLBACK(colorHandler), NULL);
+	g_signal_connect(color.grayButton, "clicked", G_CALLBACK(grayscaleHandler), NULL);
+	g_signal_connect(color.reverseButton, "clicked", G_CALLBACK(reverseHandler), NULL);
+}
+
 void cleanup(void)
 {
 	int i;
@@ -144,9 +179,7 @@ void win(void)
 
 	initCSS();
 	initWidget();
-
-	g_signal_connect(color.colorEntry, "changed", G_CALLBACK(colorHandler), NULL);
-	g_signal_connect(color.grayButton, "clicked", G_CALLBACK(grayscaleHandler), NULL);
+	initSignal();
 
 	gtk_widget_show_all(app.window);
 	gtk_main();
