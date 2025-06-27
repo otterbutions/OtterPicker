@@ -37,17 +37,22 @@ GtkCssProvider *stylesheets[TOTAL_CSS];
 int setColor(const char* toChange)
 {
 	GdkRGBA parse;
+	char *css;
 
 	// Checks if color is valid
 	if(!gdk_rgba_parse(&parse, COLORENTRY_TEXT)) return 1;
 
 	gtk_css_provider_load_from_data(stylesheets[COLOR_CSS],
-		g_strdup_printf("#picked-color { background-color: %s }", toChange), -1, NULL);
+	
+	/*  https://docs.gtk.org/glib/func.strdup_printf.html
+	 *  The caller of the function takes ownership of the data, and is responsible for freeing it.	*/
+	css = g_strdup_printf("#picked-color { background-color: %s }", toChange), -1, NULL);
 
 	gtk_style_context_add_provider_for_screen(gdk_screen_get_default(),
 		GTK_STYLE_PROVIDER(stylesheets[COLOR_CSS]), GTK_STYLE_PROVIDER_PRIORITY_USER);
 	gtk_entry_set_text(GTK_ENTRY(color.colorEntry), toChange);
 
+	g_free(css);
 	return 0;
 }
 
@@ -77,11 +82,11 @@ int grayscaleAlg(void)
 void reverseHandler(void)
 {
 	GdkRGBA parse;
-	char reverse[7];
+	char reverse[8];
 
 	if(!gdk_rgba_parse(&parse, COLORENTRY_TEXT) || strlen(COLORENTRY_TEXT) != 7) return;
 
-	sprintf(reverse, "#%x", reverseAlg());
+	sprintf(reverse, "#%06x", reverseAlg());
 
 	setColor(reverse);
 }
@@ -89,14 +94,14 @@ void reverseHandler(void)
 void grayscaleHandler(void)
 {
 	GdkRGBA parse;
-	char gray[7];
+	char gray[8];
 	unsigned int i;
 
 	// Checks if color is valid
 	if(!gdk_rgba_parse(&parse, COLORENTRY_TEXT) || strlen(COLORENTRY_TEXT) != 7) return;
 
 	i = grayscaleAlg();
-	sprintf(gray, "#%x%x%x", i, i, i);
+	sprintf(gray, "#%02x%02x%02x", i, i, i);
 
 	setColor(gray);
 }
