@@ -4,12 +4,12 @@
 
 #define COLORENTRY_TEXT gtk_entry_get_text(GTK_ENTRY(color.colorEntry))
 
-int setColor(const char* toChange);
-int reverseAlg(void);
-int grayscaleAlg(void);
-void grayscaleHandler(void);
-void colorHander(void);
+#define REVERSE_ALG(rgb) ((rgb) ^ 0xFFFFFF)
+#define GRAYSCALE_ALG(rgb) (unsigned int)(((((rgb) >> 16) & 0xFF) * 0.299) + ((((rgb) >> 8) & 0xFF) * 0.587) + ((rgb) & 0xFF) * 0.114)
 
+int setColor(const char* toChange);
+void grayscaleHandler(void);
+void colorHandler(void);
 void initWidget(void);
 void initCSS(void);
 void initSignal(void);
@@ -40,7 +40,7 @@ int setColor(const char* toChange)
 	char *css;
 
 	// Checks if color is valid
-	if(!gdk_rgba_parse(&parse, COLORENTRY_TEXT)) return 1;
+	if(!gdk_rgba_parse(&parse, COLORENTRY_TEXT) || strlen(COLORENTRY_TEXT) != 7) return 1;
 
 	gtk_css_provider_load_from_data(stylesheets[COLOR_CSS],
 	
@@ -56,29 +56,6 @@ int setColor(const char* toChange)
 	return 0;
 }
 
-int reverseAlg(void)
-{
-	unsigned int rgb = strtol((COLORENTRY_TEXT+1), NULL, 16);
-
-	return (
-		(0xFF - (rgb >> 16 & 0xFF)) << 16 | 
-		(0xFF - (rgb >> 8 & 0xFF)) << 8 | 
-		(0xFF - (rgb & 0xFF))
-	);
-}
-
-int grayscaleAlg(void)
-{
-	unsigned int rgb = strtol((COLORENTRY_TEXT+1), NULL, 16);
-
-	return (
-		(rgb >> 16 & 0xFF) * 0.299 +
-		(rgb >> 8 & 0xFF) * 0.587 + 
-		(rgb & 0xFF) * 0.114
-	);
-}
-
-
 void reverseHandler(void)
 {
 	GdkRGBA parse;
@@ -86,7 +63,7 @@ void reverseHandler(void)
 
 	if(!gdk_rgba_parse(&parse, COLORENTRY_TEXT) || strlen(COLORENTRY_TEXT) != 7) return;
 
-	sprintf(reverse, "#%06x", reverseAlg());
+	sprintf(reverse, "#%06lx", REVERSE_ALG(strtol((COLORENTRY_TEXT+1), NULL, 16)));
 
 	setColor(reverse);
 }
@@ -95,14 +72,14 @@ void grayscaleHandler(void)
 {
 	GdkRGBA parse;
 	char gray[8];
-	unsigned int i;
+	unsigned int i, rgb;
 
 	// Checks if color is valid
 	if(!gdk_rgba_parse(&parse, COLORENTRY_TEXT) || strlen(COLORENTRY_TEXT) != 7) return;
+	rgb = strtol((COLORENTRY_TEXT+1), NULL, 16);
 
-	i = grayscaleAlg();
+	i = GRAYSCALE_ALG(rgb);
 	sprintf(gray, "#%02x%02x%02x", i, i, i);
-
 	setColor(gray);
 }
 
